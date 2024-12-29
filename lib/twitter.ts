@@ -1,7 +1,5 @@
 import { TwitterApi } from 'twitter-api-v2';
 
-const getTwitterClient = (accessToken: string) => {
-  return new TwitterApi(accessToken);
-};
+const client = new TwitterApi(process.env.BEARER_TOKEN!);
 
-export { getTwitterClient };
+export const twitter = client.v2;

@@ -5,9 +5,12 @@ interface TwitterCardProps {
   username: string;
   profileImage: string;
   bio: string;
+  targetUserId: string;
+  loggedInUserId: string;
+  accessToken: string;
 }
 
-export const TwitterCard: React.FC<TwitterCardProps> = ({ username, profileImage, bio }) => {
+export const TwitterCard: React.FC<TwitterCardProps> = ({ username, profileImage, bio, targetUserId, loggedInUserId, accessToken }) => {
   return (
     <div className="max-w-sm mx-auto bg-white rounded-xl shadow-md overflow-hidden">
       <div className="flex p-4">
@@ -16,7 +19,7 @@ export const TwitterCard: React.FC<TwitterCardProps> = ({ username, profileImage
           <div className="text-xl font-medium text-black">@{username}</div>
           <p className="text-gray-500">{bio}</p>
         </div>
-        <FollowButton />
+        <FollowButton targetUserId={targetUserId} loggedInUserId={loggedInUserId} accessToken={accessToken} />
       </div>
     </div>
   );

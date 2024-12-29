@@ -9,11 +9,6 @@ declare module "next-auth" {
       email?: string
       image?: string
     }
-  }
-
-  interface JWT {
-    accessToken?: string
-    refreshToken?: string
-    username?: string
+    userId: string
   }
 }
