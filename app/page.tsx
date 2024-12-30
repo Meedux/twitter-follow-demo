@@ -1,27 +1,26 @@
 "use client"
 import { useEffect, useState } from 'react'
 import { TwitterCard } from '@/components/TwitterCard'
+import { useSession } from 'next-auth/react'
 
 export default function Home() {
+  const { data: session } = useSession()
   const [loggedInUserId, setLoggedInUserId] = useState('')
-  const [accessToken, setAccessToken] = useState('')
 
   useEffect(() => {
-    // Fetch or retrieve the loggedInUserId and accessToken from your authentication flow
-    // For simplicity, we'll use globalThis here, but you should use a proper state management or context
-    setLoggedInUserId((globalThis as any).loggedInUserId || '')
-    setAccessToken((globalThis as any).accessToken || '')
-  }, [])
+    if (session) {
+      setLoggedInUserId(session.userId)
+    }
+  }, [session])
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100">
+    <main className="min-h-screen flex items-center justify-center bg-[#111827]">
       <TwitterCard
         username="EDITH"
         profileImage="https://pbs.twimg.com/profile_images/1866592205369958405/UiQ0nqRA_400x400.jpg"
         bio="Decentralized Super AI and Multi-Model AI Agents Platform."
-        targetUserId={loggedInUserId} // Use loggedInUserId as targetUserId
+        targetUserId="1856996371292680192" // Replace with the actual target user ID
         loggedInUserId={loggedInUserId}
-        accessToken={accessToken}
       />
     </main>
   )

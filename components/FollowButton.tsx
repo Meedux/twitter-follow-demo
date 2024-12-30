@@ -1,48 +1,88 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { signIn, signOut, useSession } from 'next-auth/react'
 
-export function FollowButton({ targetUserId, loggedInUserId, accessToken }: { targetUserId: string, loggedInUserId: string, accessToken: string }) {
+export function FollowButton({ targetUserId, loggedInUserId }: { targetUserId: string, loggedInUserId: string }) {
+  const { data: session, status } = useSession()
   const [following, setFollowing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [popup, setPopup] = useState<Window | null>(null)
 
   const handleLogin = () => {
-    window.location.href = 'http://192.168.100.36:3000/api/auth/oauth2'
+    signIn('twitter')
   }
 
   const handleFollow = async () => {
     setLoading(true)
     setError('')
 
+    const followUrl = `https://twitter.com/intent/follow?user_id=${targetUserId}`
+    const newPopup = window.open(followUrl, 'Follow', 'width=600,height=400')
+    setPopup(newPopup)
+  }
+
+  const checkFollowStatus = async () => {
     try {
+      console.log('Checking follow status...')
+      console.log(session?.userId)
       const response = await fetch('/api/follow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ targetUserId, loggedInUserId })
+        body: JSON.stringify({ targetUserId, loggedInUserId: session?.userId })
       })
 
       if (response.ok) {
         setFollowing(true)
       } else {
         const data = await response.json()
-        setError(data.error || 'Failed to follow user')
+        setError(data.error || 'Failed to verify follow status')
       }
     } catch (err) {
-      setError('Failed to follow user')
+      setError('Failed to verify follow status')
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    if (popup) {
+      const interval = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(interval)
+          checkFollowStatus()
+        }
+      }, 1000)
+
+      return () => clearInterval(interval)
+    }
+  }, [popup])
+
   const handleButtonClick = async () => {
-    if (!accessToken) {
+    if (!session) {
       handleLogin()
     } else {
       await handleFollow()
     }
+  }
+
+  if (status === 'loading') {
+    return <p>Loading...</p>
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className="flex flex-col items-center">
+        <button
+          onClick={handleLogin}
+          className="bg-[#2CC562] text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Sign in with Twitter
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -50,7 +90,7 @@ export function FollowButton({ targetUserId, loggedInUserId, accessToken }: { ta
       <button
         onClick={handleButtonClick}
         disabled={following || loading}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
+        className="bg-[#2CC562] text-white px-6 py-4 rounded hover:bg-green-600 disabled:bg-gray-400"
       >
         {loading ? 'Loading...' : following ? 'Following' : 'Follow'}
       </button>

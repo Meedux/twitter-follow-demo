@@ -1,40 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TwitterApi } from 'twitter-api-v2';
+import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
+import axios from 'axios';
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const state = searchParams.get('state');
-  const code = searchParams.get('code');
-
-  // Retrieve the stored codeVerifier and state
-  const codeVerifier = (globalThis as any).codeVerifier;
-  const storedState = (globalThis as any).oauthState;
-
-  if (!codeVerifier || !state || !storedState || !code) {
-    return NextResponse.json({ error: 'You denied the app or your session expired!' }, { status: 400 });
-  }
-  if (state !== storedState) {
-    return NextResponse.json({ error: 'Stored tokens didn\'t match!' }, { status: 400 });
-  }
-
-  const client = new TwitterApi({
-    clientId: process.env.TWITTER_CLIENT_ID!,
-    clientSecret: process.env.TWITTER_CLIENT_SECRET!,
-  });
+export async function POST(request: NextRequest) {
+  await dbConnect();
 
   try {
-    const { client: loggedClient, accessToken, refreshToken, expiresIn } = await client.loginWithOAuth2({
-      code,
-      codeVerifier,
-      redirectUri: process.env.CALLBACK_URL!,
-    });
+    const { targetUserId, loggedInUserId } = await request.json();
+    const apiKey = process.env.SOCIALDATA_API_KEY;
+    const url = `https://api.socialdata.tools/twitter/user/${loggedInUserId}/following/${targetUserId}`;
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json',
+    };
 
-    (globalThis as any).accessToken = accessToken;
-    (globalThis as any).refreshToken = refreshToken;
-    (globalThis as any).loggedInUserId = (await loggedClient.v2.me()).data.id;
+    try {
+      const response = await axios.get(url, { headers });
 
-    return NextResponse.redirect('/');
+      if (response.data.status === 'success' && response.data.is_following) {
+        await User.create({
+          twitterId: loggedInUserId,
+          targetId: targetUserId,
+          followStatus: true,
+          timestamp: new Date()
+        });
+
+        return NextResponse.json({ success: true });
+      } else {
+        return NextResponse.json({ error: 'Failed to verify follow status' }, { status: 400 });
+      }
+    } catch (error) {
+      console.error('SocialData API Error:', error);
+      return NextResponse.json({ error: 'SocialData API error' }, { status: 503 });
+    }
   } catch (error) {
-    return NextResponse.json({ error: 'Invalid verifier or access tokens!' }, { status: 403 });
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

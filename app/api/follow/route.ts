@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import { TwitterApi } from 'twitter-api-v2';
+import axios from 'axios';
 
 export async function POST(request: NextRequest) {
   await dbConnect();
 
   try {
     const { targetUserId, loggedInUserId } = await request.json();
-    const authorization = request.headers.get('Authorization');
-
-    if (!authorization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authorization.split(' ')[1];
-    const client = new TwitterApi(accessToken);
-    const twitter = client.v2;
+    const apiKey = process.env.SOCIALDATA_API_KEY;
+    console.log("loggedInUserId", loggedInUserId);
+    console.log("targetUserId", targetUserId);
+    const url = `https://api.socialdata.tools/twitter/user/${loggedInUserId}/following/${targetUserId}`;
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json',
+    };
 
     try {
-      const follow = await twitter.follow(loggedInUserId, targetUserId);
+      const response = await axios.get(url, { headers });
 
-      if (follow.data.following) {
+      if (response.data.status === 'success' && response.data.is_following) {
         await User.create({
           twitterId: loggedInUserId,
           targetId: targetUserId,
@@ -31,11 +30,11 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true });
       } else {
-        return NextResponse.json({ error: 'Failed to follow user' }, { status: 400 });
+        return NextResponse.json({ error: 'Failed to verify follow status' }, { status: 400 });
       }
-    } catch (twitterError) {
-      console.error('Twitter API Error:', twitterError);
-      return NextResponse.json({ error: 'Twitter API error' }, { status: 503 });
+    } catch (error) {
+      console.error('SocialData API Error:', error);
+      return NextResponse.json({ error: 'SocialData API error' }, { status: 503 });
     }
   } catch (error) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
